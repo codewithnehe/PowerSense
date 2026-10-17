@@ -205,6 +205,21 @@ async def test_empty_content_is_treated_as_a_failed_attempt() -> None:
     assert result.attempts == 2
 
 
+async def test_malformed_json_response_falls_back() -> None:
+    """A 200 response with a non-JSON body still reaches the fallback path."""
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, content=b"<html>gateway error</html>")
+    )
+    async with httpx.AsyncClient(transport=transport) as client:
+        result = await generate_assessment(
+            make_facts(), settings=TEST_SETTINGS, http_client=client
+        )
+
+    assert result.used_fallback is True
+    assert result.attempts == 2
+    assert "malformed JSON" in (result.error or "")
+
+
 def test_prompt_contains_only_aggregated_facts() -> None:
     """No cell, device identifiers or coordinates reach the model."""
     facts = make_facts()

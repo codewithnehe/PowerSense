@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from app.models import AlertAssessment, Persona, SignalFacts, State
+from app.models import AlertAssessment, Persona, Risk, SignalFacts, State
 
-_RISK_BY_STATE: dict[State, str] = {
+_RISK_BY_STATE: dict[State, Risk] = {
     "out_now": "high",
     "elevated_risk": "medium",
     "possible_soon": "medium",
