@@ -1,0 +1,47 @@
+:root {
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-body: "Avenir Next", Avenir, "Segoe UI", system-ui, -apple-system, sans-serif;
+  --bg: #f4f2eb;
+  --surface: #fffdf8;
+  --surface-soft: #f7f5ee;
+  --line: #ded9cc;
+  --text: #17201a;
+  --muted: #5d665f;
+  --note-bg: #f3efe2;
+  --note-fg: #5a4a20;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 12% 0%, rgb(213 228 214 / 55%), transparent 45%),
+    radial-gradient(circle at 100% 20%, rgb(246 226 186 / 45%), transparent 40%),
+    var(--bg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+::selection {
+  background: #cfe3d2;
+}
+
+button,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid #2f6b44;
+  outline-offset: 2px;
+}

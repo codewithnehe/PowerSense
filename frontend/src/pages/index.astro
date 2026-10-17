@@ -1,0 +1,352 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="PowerSense — power, explained">
+  <main class="shell">
+    <header class="masthead">
+      <p class="wordmark">PowerSense</p>
+      <p class="tagline">Power, explained. Built for Nigeria.</p>
+    </header>
+
+    <section class="power-window" aria-live="polite" aria-busy="true" id="power-window">
+      <p class="eyebrow">Power Window</p>
+      <div class="skeleton" id="loading">
+        <p>Checking the signals near you…</p>
+      </div>
+
+      <div id="alert" hidden>
+        <div class="status-row">
+          <span class="state-pill" id="state-pill"></span>
+          <span class="risk" id="risk"></span>
+        </div>
+
+        <p class="area" id="area"></p>
+        <p class="reason" id="reason"></p>
+        <p class="message" id="message"></p>
+
+        <h2 class="actions-heading">What you can do</h2>
+        <ul class="actions" id="actions"></ul>
+
+        <details class="why">
+          <summary>Why?</summary>
+          <p id="why"></p>
+        </details>
+
+        <p class="fallback-note" id="fallback-note" hidden>
+          The AI assessment was unavailable, so this is a template based on the
+          current rule state.
+        </p>
+        <p class="demo-note" id="demo-note" hidden>
+          Demo data: these signals are seeded for the preview, not live reports.
+        </p>
+        <p class="updated" id="updated"></p>
+      </div>
+
+      <div class="error" id="error" hidden>
+        <p>Could not load the Power Window.</p>
+        <button type="button" id="retry">Try again</button>
+      </div>
+    </section>
+
+    <footer class="footnote">
+      <p>
+        PowerSense uses approximate areas only. Exact locations and device IDs
+        are never sent to the AI model.
+      </p>
+    </footer>
+  </main>
+</BaseLayout>
+
+<script>
+  const API_BASE = import.meta.env.PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+  const STATE_LABELS: Record<string, string> = {
+    out_now: "Power out now",
+    elevated_risk: "Elevated risk",
+    possible_soon: "Possible soon",
+    all_clear: "All clear",
+  };
+
+  type Alert = {
+    area_label: string;
+    state: string;
+    risk: string;
+    reason: string;
+    message: string;
+    actions: string[];
+    why: string;
+    used_fallback: boolean;
+    is_demo: boolean;
+    created_at: string;
+  };
+
+  const windowEl = document.querySelector<HTMLElement>("#power-window");
+  const loadingEl = document.querySelector<HTMLElement>("#loading");
+  const alertEl = document.querySelector<HTMLElement>("#alert");
+  const errorEl = document.querySelector<HTMLElement>("#error");
+  const retryEl = document.querySelector<HTMLButtonElement>("#retry");
+
+  function setText(selector: string, value: string): void {
+    const el = document.querySelector<HTMLElement>(selector);
+    if (el) el.textContent = value;
+  }
+
+  function render(alert: Alert): void {
+    const stateLabel = STATE_LABELS[alert.state] ?? alert.state;
+    const pill = document.querySelector<HTMLElement>("#state-pill");
+    if (pill) {
+      pill.textContent = stateLabel;
+      pill.dataset.state = alert.state;
+    }
+
+    setText("#risk", `${alert.risk} risk`);
+    setText("#area", alert.area_label);
+    setText("#reason", alert.reason);
+    setText("#message", alert.message);
+    setText("#why", alert.why);
+    setText(
+      "#updated",
+      `Updated ${new Date(alert.created_at).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`,
+    );
+
+    const actionsEl = document.querySelector<HTMLUListElement>("#actions");
+    if (actionsEl) {
+      actionsEl.replaceChildren(
+        ...alert.actions.map((action) => {
+          const item = document.createElement("li");
+          item.textContent = action;
+          return item;
+        }),
+      );
+    }
+
+    const fallbackNote = document.querySelector<HTMLElement>("#fallback-note");
+    if (fallbackNote) fallbackNote.hidden = !alert.used_fallback;
+
+    const demoNote = document.querySelector<HTMLElement>("#demo-note");
+    if (demoNote) demoNote.hidden = !alert.is_demo;
+
+    loadingEl?.setAttribute("hidden", "");
+    errorEl?.setAttribute("hidden", "");
+    alertEl?.removeAttribute("hidden");
+    windowEl?.setAttribute("aria-busy", "false");
+  }
+
+  async function loadAlert(): Promise<void> {
+    windowEl?.setAttribute("aria-busy", "true");
+    alertEl?.setAttribute("hidden", "");
+    errorEl?.setAttribute("hidden", "");
+    loadingEl?.removeAttribute("hidden");
+
+    try {
+      const response = await fetch(`${API_BASE}/alert?persona=student&lang=en`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      render((await response.json()) as Alert);
+    } catch (error) {
+      console.error("Failed to load alert", error);
+      loadingEl?.setAttribute("hidden", "");
+      errorEl?.removeAttribute("hidden");
+      windowEl?.setAttribute("aria-busy", "false");
+    }
+  }
+
+  retryEl?.addEventListener("click", () => void loadAlert());
+  void loadAlert();
+</script>
+
+<style>
+  .shell {
+    width: min(100% - 2.5rem, 44rem);
+    margin: 0 auto;
+    padding: clamp(2rem, 6vw, 5rem) 0 3rem;
+  }
+
+  .masthead {
+    margin-bottom: 2rem;
+  }
+
+  .wordmark {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 7vw, 3.25rem);
+    font-weight: 650;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .tagline {
+    margin: 0.6rem 0 0;
+    color: var(--muted);
+    font-size: 1.02rem;
+  }
+
+  .power-window {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    box-shadow: 0 18px 50px rgb(23 32 26 / 8%);
+  }
+
+  .eyebrow {
+    margin: 0 0 1.25rem;
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .status-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .state-pill {
+    display: inline-block;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    background: var(--state-bg, #e7efe9);
+    color: var(--state-fg, #1d3a2a);
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  .state-pill[data-state="out_now"] {
+    --state-bg: #fbe3df;
+    --state-fg: #7a1f13;
+  }
+
+  .state-pill[data-state="elevated_risk"] {
+    --state-bg: #fff0d1;
+    --state-fg: #6d4700;
+  }
+
+  .state-pill[data-state="possible_soon"] {
+    --state-bg: #e6eefb;
+    --state-fg: #1e3f73;
+  }
+
+  .state-pill[data-state="all_clear"] {
+    --state-bg: #e7efe9;
+    --state-fg: #1d3a2a;
+  }
+
+  .risk {
+    color: var(--muted);
+    font-size: 0.86rem;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+
+  .area {
+    margin: 1rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .reason {
+    margin: 1.4rem 0 0.5rem;
+    font-weight: 650;
+    line-height: 1.4;
+  }
+
+  .message {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.3rem, 3.6vw, 1.75rem);
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+
+  .actions-heading {
+    margin: 2rem 0 0.75rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .actions {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .actions li {
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--surface-soft);
+  }
+
+  .why {
+    margin-top: 1.75rem;
+    border-top: 1px solid var(--line);
+    padding-top: 1rem;
+  }
+
+  .why summary {
+    cursor: pointer;
+    font-weight: 650;
+  }
+
+  .why p {
+    margin: 0.75rem 0 0;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  .fallback-note,
+  .demo-note {
+    margin: 1.25rem 0 0;
+    padding: 0.75rem 1rem;
+    border-radius: 0.65rem;
+    background: var(--note-bg);
+    color: var(--note-fg);
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .updated {
+    margin: 1.25rem 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  .skeleton p {
+    margin: 0;
+    color: var(--muted);
+  }
+
+  .error p {
+    margin: 0 0 0.75rem;
+  }
+
+  .error button {
+    padding: 0.55rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--surface-soft);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .footnote {
+    margin-top: 1.5rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  .footnote p {
+    margin: 0;
+  }
+</style>
